@@ -1,0 +1,5 @@
+"USER"
+"initials"
+"default action"
+"default collection"
+""

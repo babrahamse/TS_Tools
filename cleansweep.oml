@@ -1,0 +1,56 @@
+'MacroName:cleansweep
+'MacroDescription:remove unwanted MARC fields
+Option Explicit
+
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+Redim hitlist(11) as String
+hitlist(0) = "013"
+hitlist(1) = "015"
+hitlist(2) = "016"
+hitlist(3) = "017"
+hitlist(4) = "029"
+hitlist(5) = "055"
+hitlist(6) = "070"
+hitlist(7) = "071"
+hitlist(8) = "072"
+hitlist(9) = "084"
+hitlist(10) = "530"
+hitlist(11) = "938"
+
+
+Dim bool%
+Dim rows%, current_row%, offset%
+Dim field_data$, marc_field$
+Dim hitlist_counter%
+
+CS.EndRecord
+Let rows = CS.CursorRow
+
+CS.HomeRecord
+
+FOR current_row = 1 to rows 
+      bool = CS.GetFieldLine((current_row - offset), field_data)
+      LET marc_field = LEFT$(field_data,3)
+      
+      FOR hitlist_counter = 1 TO 11
+         IF hitlist(hitlist_counter) = marc_field THEN
+            CS.DeleteFieldLine(current_row - offset)
+            offset = offset + 1
+            EXIT FOR
+         END IF
+      NEXT hitlist_counter
+      
+      
+NEXT current_row
+
+End Sub

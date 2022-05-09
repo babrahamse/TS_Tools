@@ -1,0 +1,127 @@
+'MacroName:enhance505
+'MacroDescription:enhance the 505 with $'s
+Option Explicit
+
+Sub Main
+
+   Dim CS As Object
+   On Error Resume Next
+   Set CS  = GetObject(,"Connex.Client")
+   On Error GoTo 0
+   If CS  Is Nothing Then
+      Set CS  = CreateObject("Connex.Client")
+   End If
+
+   Dim line_count%, current_line_number% 
+   Dim current_line$
+   Dim marc_prefix$, marc_tag$
+   Dim ind1$, ind2$
+   Dim marc_range%
+   Dim new_toc$, current_toc_element$
+   Dim toc$, len_toc%, current_char$   
+   Dim char_counter%
+   Dim title_key$, chaptitle_key$, subtitle_key$, author_key$
+   Dim snippet$
+   LET title_key = " --"
+   LET author_key = " /"
+   LET chaptitle_key = " ;"
+   LET subtitle_key = ":"
+   Dim new_field$
+   
+   CS.EndRecord
+   Let line_count = CS.CursorRow
+   CS.HomeRecord
+   
+   FOR current_line_number = 1 to line_count
+   
+      CS.GetFieldLine current_line_number, current_line
+      
+      If current_line = "Data contains non-latin script" THEN
+         ' skip
+      ELSE
+        
+        Let marc_prefix = LEFT$(current_line, 5)
+        Let ind1 = MID$(marc_prefix, 4, 1)
+        Let ind2 = RIGHT$(marc_prefix, 1)
+        Let marc_tag = LEFT$(marc_prefix, 3)   
+        Let marc_range = INT(LEFT$(marc_tag, 1))
+        
+        IF marc_range < 5 THEN
+          ' pass
+        ELSEIF marc_range > 5 THEN
+          EXIT FOR
+        ELSEIF marc_range = 5 THEN
+          
+          IF LEFT$(marc_tag, 3) = "505" THEN
+            
+            IF ind2 <> "0" THEN
+               
+               toc = RIGHT$(current_line, (LEN(current_line) - 5))
+               new_toc = Chr(223) & "t "            
+               
+               LET len_toc = LEN(toc)
+               
+               FOR char_counter = 1 to len_toc
+                 
+                 current_char = MID$(toc, char_counter, 1)
+                 
+                 IF LEN(current_toc_element) < 5 THEN
+                 
+                   current_toc_element = current_toc_element & current_char
+                  
+                 ELSEIF current_char = subtitle_key THEN
+                 
+                      new_toc = new_toc & RTRIM(LEFT$(current_toc_element, (LEN(current_toc_element)))) & " :"
+                      current_toc_element = ""
+                   
+                 
+                 ELSEIF RIGHT$(current_toc_element, 3) = title_key THEN
+                   
+                   new_toc = new_toc & current_toc_element & " " & Chr(223) & "t "
+                   current_toc_element = ""
+                   
+                 ELSEIF RIGHT$(current_toc_element, 2) = chaptitle_key THEN
+                     new_toc = new_toc & current_toc_element & " " & Chr(223) & "t "
+                     current_toc_element = ""
+                 
+                 ELSEIF RIGHT$(current_toc_element, 2) = author_key THEN
+                 
+                   new_toc = new_toc & current_toc_element & " " & Chr(223) & "r "
+                   current_toc_element = ""
+                   
+                 ELSE
+                 
+                   current_toc_element = current_toc_element & current_char
+                 
+                 END IF
+                   
+                 IF char_counter = len_toc THEN
+                   new_toc = new_toc & current_toc_element
+                   current_toc_element = ""
+                 END IF
+                  
+               NEXT
+            
+            END IF
+          END IF
+        END IF
+        
+        IF new_toc <> "" THEN
+          new_field = marc_tag & ind1 & "0" & new_toc 
+          
+          CS.DeleteFieldLine current_line_number
+          CS.AddFieldLine current_line_number, new_field
+        
+          new_field = ""
+          new_toc = ""
+          toc = ""
+        
+        END IF
+      END IF
+   NEXT
+   
+   
+
+   CS.Reformat
+   
+End Sub

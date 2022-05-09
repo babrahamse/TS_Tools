@@ -1,0 +1,45 @@
+'MacroName:toggle_final_p
+'MacroDescription:Toggle final period in field
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+
+Redim currentField(3), newField(3)
+Const TAG=0, IND=1, VAL=2, VAL_LEN=3
+
+current_row = CS.CursorRow
+Let CS.CursorColumn = 0
+
+BOOL = CS.GetFieldLine(current_row, cf_string)
+BOOL = CS.DeleteFieldLine (current_row)
+
+cf_str_len = LEN(cf_string)
+Let currentField(VAL_LEN) = cf_str_len - 5
+
+Let currentField(TAG)=MID$(cf_string, 1, 3)
+Let currentField(IND)=MID$(cf_string, 4, 2)
+Let currentField(VAL)=MID$(cf_string, 6, currentField(VAL_LEN))
+
+If RIGHT$(currentField(VAL), 1) = "." Then
+   newField(VAL) = LEFT$(currentField(VAL), currentField(VAL_LEN) - 1)
+Else
+   newField(VAL) = currentField(VAL) & "."
+End If
+
+newField(TAG)=currentField(TAG)
+newField(IND)=currentField(IND)
+newField(VAL_LEN)=LEN(newField(VAL))
+
+BOOL = CS.AddFieldLine((current_row), str(newField(TAG)) & str(newField(IND)) & str(newField(VAL)))
+
+
+   
+End Sub

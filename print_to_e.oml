@@ -1,0 +1,178 @@
+'MacroName:print_to_e
+'MacroDescription:Derives a new workform, converts to RDA record for electronic version of a monograph.
+
+Sub Main
+
+   Dim CS As Object
+   Dim recordNo as String
+   Dim row,column as Integer
+
+   On Error Resume Next
+   Set CS  = GetObject(,"Connex.Client")
+   On Error GoTo 0
+   If CS  Is Nothing Then
+      Set CS  = CreateObject("Connex.Client")
+   End If
+
+   BOOL=CS.GetFixedField("OCLC", RecordNo)
+   
+   SELECT CASE BOOL
+   
+      CASE 0
+      
+         MsgBox("This is not a record. OR at least, it doesn't have an OCLC number. Perhaps, it's a workform. In any case, the macro won't work with this.")
+         EXIT SUB
+         
+      CASE -1
+      
+         BOOLa = CS.GetField ("776", 1, check776$)
+         
+         IF BOOLa=0 THEN
+         ELSE
+            IF LEFT(check776$,11)="77608"&Chr(223)&"i Onl" THEN
+               MsgBox("Warning! It appears that there is already an online version cited in the record. Macro will continue BUT you might want to check that!")
+            ELSE
+               MsgBox("Warning! This record already has a 776. Macro will continue but you might want to investigate that.")   
+            END IF         
+         END IF
+ 
+         BOOLa=CS.GetFixedField("Form", checkForm$)
+         BOOLa=CS.GetFixedField("Desc", checkRules$)
+         BOOLa=CS.GetFixedField("BLvl", checkBLvl$)         
+         
+         If checkBLvl$ = "m" Then
+            ELSE
+               MsgBox("This macro was designed to work with monograph records only. It appear from the BLvl field (" & checkBLvl$ & ") that this is not the case. Macro will end.")
+               EXIT SUB
+         End IF
+   
+         If checkForm$ <> "" Then
+            MsgBox("This macro was designed to work with print records. It appears from the Form field (" & checkForm$ & ") that this is not the case. Macro will end.")
+            EXIT SUB
+         End If
+   
+         If checkRules$ = "" Then
+            MsgBox("This macro does not work with records that do not have ISBD punctuation. It appears from the Form field ([blank]) that this is not the case. Macro will end.")
+            EXIT SUB
+         End If
+         
+         If checkRules$ = "a" Then
+            MsgBox("This macro was designed to work with RDA records. It appears this record is AACR2. It will still --(probably)-- work but you may need to check the results more carefully. Remember the resulting recorded will be coded as RDA!")
+         End If                
+                    
+   END SELECT
+   
+      
+   'Derive new record
+   BOOL = CS.DeriveNewRecord (True)
+   
+   'Add 776 based on control number of original record
+   BOOL = CS.AddField(1,"77608"&recordNo)
+   BOOL = CS.InsertFromCitedRecord
+   Let row=CS.CursorRow
+   CS.CursorColumn=6
+   BOOL = CS.InsertText(Chr(223) & "i Print version: " & Chr(223) & "a ")
+        
+   'Change 020 $a to 020 $z
+   Dim x, y, z as Integer
+   Dim printISBN, eISBN as String
+   
+   x = 1
+   
+   Do 
+      BOOL = CS.GetField ("020", x, printISBN)
+      
+      If BOOL=0 Then Exit Do
+      
+      Let y=LEN(printISBN)
+      Let eISBN = RIGHT(printISBN, (y - 5))
+      Let eISBN = "020  " & Chr(223) & "z " & eISBN
+       
+      BOOL=CS.AddField(x, eISBN)
+      BOOL=CS.DeleteField("020", x+1)
+      x = x + 1
+   Loop
+
+   'Remove 264 x3 (manufacturer information)
+   Dim pubNote as String
+   x = 1
+   Do
+      BOOL = CS.GetField("264", x, pubNote)
+      If BOOL=0 Then Exit Do
+      
+      If MID(pubNote,5,1)="3" Then
+         BOOL = CS.DeleteField("264",x)
+      End If
+      x = x + 1
+   Loop
+
+   'Convert 300 to online version
+   Dim physDesc, currChar as String
+   Dim midField as Integer
+      BOOL = CS.GetField("300",1,physDesc)
+      Let y = LEN(physDesc)
+      
+      For z = 1 to y
+         Let currChar = MID(physDesc, z, 1)
+         If currChar = ";" Then
+            physDesc = LEFT(physDesc, (z - 1))
+            Exit For
+         End If
+      Next z
+      
+      Let y = LEN(physDesc)
+      
+      Redim newPhysDesc(3) as String
+      Let newPhysDesc(0)="300  "
+      Let newPhysDesc(1)="1 online resource ("
+      
+      For z = 1 to y
+         If z=y Then
+            newPhysDesc(2)=MID(physDesc,6,(z-6))   
+            EXIT FOR
+         End If
+       
+         Let currChar = MID(physDesc, z, 1)
+         If currChar = ":" Then
+            newPhysDesc(2)=MID(physDesc,6,(z-7))
+            newPhysDesc(3)=MID(physDesc,z,y-z)
+            Exit For
+         End If 
+         
+      Next z
+      
+     newPhysDesc(2)=newPhysDesc(2)&") "
+     
+     physDesc=""
+     For z = 0 to 3
+         physDesc=physDesc & newPhysDesc(z)
+     Next z
+      
+     BOOL = CS.SetField(1,physDesc)
+     
+     'Change 33x fields, add additional fields for e resource
+     
+      BOOL=CS.DeleteField("336",1)
+      BOOL=CS.DeleteField("337",1)
+      BOOL=CS.DeleteField("338",1)
+     
+      BOOL = CS.SetField(1,"336  text " & Chr(223) & "b txt " & Chr(223) & "2 rdacontent")
+      BOOL = CS.AddField(1,"337  computer " & Chr(223) & "b c " & Chr(223) & "2 rdamedia")
+      BOOL = CS.AddField(1,"338  online resource " & Chr(223) & "b cr " & Chr(223) & "2 rdacarrier") 
+      BOOL = CS.AddField(1,"347  text file " & Chr(223) & "b PDF " & Chr(223) & "2 rda")
+
+      BOOL = CS.AddField(1, "006  m     o  d")
+      BOOL = CS.AddField(1, "007  c " & Chr(223) & "b r")
+
+      BOOL = CS.AddField(1, "588  Description based on print version record.")
+     
+      'Set fixed fields
+      BOOL = CS.SetFixedField ("ELvl", "K")
+      BOOL = CS.SetFixedField ("Form", "o")
+      BOOL = CS.SetFixedField ("Desc", "i")
+
+      'Set 040
+      BOOL = CS.SetField(1,"040  MYG " & Chr(223) & "b eng " & Chr(223) & "e rda " & Chr(223) & "c MYG")
+
+   
+End Sub

@@ -1,0 +1,98 @@
+'MacroName:remove_unused_6xx
+'MacroDescription:removes unused 6xx fields
+
+Sub Main
+
+   Dim CS As Object
+   On Error Resume Next
+   Set CS  = GetObject(,"Connex.Client")
+   On Error GoTo 0
+   If CS  Is Nothing Then
+      Set CS  = CreateObject("Connex.Client")
+   End If
+   
+   CS.EndRecord
+   linecount = CS.CursorRow
+   
+   For row_counter = 1 to linecount
+      CS.GetFieldLine row_counter + offset, current_row_value
+
+      IF current_row_value = "Data contains non-latin script" THEN
+         marc_range = 0
+      ELSE
+         marc_range = INT(LEFT$(current_row_value, 1))
+      END IF
+      
+      IF marc_range > 6 THEN
+         EXIT FOR
+      END IF
+      
+      IF marc_range = 6 THEN
+      
+         marc_tag = LEFT$(current_row_value, 3)
+         
+         if marc_tag = "653" THEN
+            goto DeleteHeading
+         END IF
+         
+         ind1 = MID$(current_row_value, 4, 1)
+         ind2 = MID$(current_row_value, 5, 1)
+      
+         IF ind2 = "0" THEN
+            'already enhanced, don't process
+            GOTO KeepHeading
+
+         END IF
+      
+         IF ind2 = "0" THEN
+            GOTO KeepHeading
+         
+         ELSEIF ind2 = "7" THEN
+            field_value = RIGHT$(current_row_value, (LEN(current_row_value)-5))
+            len_field_value = LEN(field_value)
+            FOR char_counter = 1 to len_field_value
+               current_char = MID$(field_value, char_counter, 1)
+               
+            IF current_char = CHR(223) THEN
+               next_char = MID$(field_value, (char_counter + 1), 1)
+               
+               IF next_char = "2" THEN
+                  remainder_of_field = RIGHT$(field_value, len_field_value - char_counter - 2)
+                  
+                  sot = ""
+                  stop_looking = 0
+                  sot_offset = 1
+                  DO WHILE stop_looking = 0
+                     current_sot_char = MID$(remainder_of_field, sot_offset, 1)
+                     
+                     IF current_sot_char = " " OR current_sot_char = "" THEN
+                        stop_looking = 1
+                     ELSE
+                        sot = sot & current_sot_char
+                     END IF
+                     
+                     sot_offset = sot_offset + 1
+                  LOOP
+
+                  IF sot = "fast" OR sot = "lcgft" OR sot = "lcgmpt" OR sot = "lcdgt" OR sot = "gsafd" THEN
+                     GOTO KeepHeading
+                  ELSE
+                     GOTO DeleteHeading
+                  END IF
+                  
+               END IF
+            END IF
+            NEXT
+         
+         ELSE
+DeleteHeading:
+            CS.DeleteFieldLine row_counter + offset
+            offset = offset - 1
+         
+         END IF
+      
+      END IF
+      
+KeepHeading:  
+   Next
+End Sub

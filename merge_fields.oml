@@ -1,0 +1,76 @@
+'MacroName:mergeFields
+'MacroDescription:mergeFields
+'option Explicit
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+Dim BOOL%
+Redim selected_field(3), merged_field(3)
+Const TAG=0, IND=1, VAL=2, VAL_LEN=3
+Dim selected_field_raw$, selected_field_raw_len%
+Dim next_field_raw$, next_field_TAG$, next_field_VAL$
+Dim count_of_merged_fields%
+Dim tag_matches%, field_offset#
+Dim merged_field_final$
+
+' Get vals of selected field
+current_row = CS.CursorRow
+Let CS.CursorColumn = 0
+
+BOOL = CS.GetFieldLine(current_row, selected_field_raw)
+count_of_merged_fields = 1
+
+selected_field_raw_len = LEN(selected_field_raw)
+
+Let selected_field(VAL_LEN) = selected_field_raw_len - 5
+Let selected_field(TAG) = MID$(selected_field_raw, 1, 3)
+Let selected_field(IND)=MID$(selected_field_raw, 4, 2)
+Let selected_field(VAL) = MID$(selected_field_raw, 6, selected_field(VAL_LEN))
+
+' Set initial values of merged_field
+Let merged_field(TAG) = selected_field(TAG)
+Let merged_field(IND) = selected_field(IND)
+Let merged_field(VAL) = selected_field(VAL)
+
+' Loop through subsequent fields, stop if the tag no longer matches
+tag_matches = True
+
+Do While tag_matches = True
+   field_offset = field_offset + 1
+      
+   BOOL = CS.GetFieldLine(current_row + field_offset, next_field_raw)
+   Let next_field_TAG = LEFT$(next_field_raw, 3)
+   
+   If next_field_TAG <> selected_field(TAG) Then
+      tag_matches = False
+   
+   Else
+      next_field_raw_len = LEN(next_field_raw)
+      next_field_VAL = RIGHT$(next_field_raw, (next_field_raw_len - 5))
+      merged_field(VAL) = merged_field(VAL) & " " & next_field_val
+      count_of_merged_fields = count_of_merged_fields + 1
+      
+   End If
+Loop
+
+'Print merged field
+merged_field_final = merged_field(TAG) & merged_field(IND) & merged_field(VAL)
+BOOL=CS.AddField((count_of_merged_fields + 1), merged_field_final)
+
+' Delete unmerged fields
+current_row = CS.CursorRow
+For field_line = 1 to count_of_merged_fields
+   CS.DeleteFieldLine(current_row - field_line)
+Next field_line
+
+     
+
+End Sub

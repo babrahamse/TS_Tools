@@ -1,0 +1,66 @@
+'MacroName:bib_note
+'MacroDescription:populates 504 field based on existing values
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+REDIM selected_field(3), new_504(3)
+CONST TAG=0, IND=1, VAL=2, VAL_LEN=3
+DIM selected_field_raw$, selected_field_raw_len%
+DIM next_field_raw$, next_field_TAG$, next_field_VAL$
+
+' Get vals of selected field
+current_row = CS.CursorRow
+Let CS.CursorColumn = 0
+
+BOOL = CS.GetFieldLine(current_row, selected_field_raw)
+
+selected_field_raw_len = LEN(selected_field_raw)
+
+selected_field(VAL_LEN) = selected_field_raw_len - 5
+selected_field(TAG) = MID$(selected_field_raw, 1, 3)
+
+If selected_field(TAG) <> "504" Then
+
+   Exit Sub
+   
+End If
+
+selected_field(IND)=MID$(selected_field_raw, 4, 2)
+selected_field(VAL) = MID$(selected_field_raw, 6, selected_field(VAL_LEN))
+
+If selected_field(VAL) = "" Then
+   new_504(VAL) = "Includes bibliographical references"
+Else
+   new_504(VAL) = "Includes bibliographical references (pages " & selected_field(VAL) & ")"
+End If 
+
+add_504 = "504  " & new_504(VAL)
+
+BOOL = CS.AddField((current_row + 1), add_504)
+BOOL = CS.DeleteFieldLine(current_row)
+
+' Get and update fixed field values
+BOOL = CS.GetFixedField("Cont", ff_cont)
+
+If ff_cont = "a" Then 
+   ff_cont = "ab"
+Else
+   If Left$(ff_cont, 1) = "b" Then
+      'Pass
+   Else
+      ff_cont = "b" & ff_cont
+   End If
+End If
+
+BOOL = CS.SetFixedField ("Cont", ff_cont)
+
+   
+End Sub

@@ -1,0 +1,53 @@
+'MacroName:stats_lite
+'MacroDescription:simple stats generation macro
+'$Include "TS_tools!utilities"
+
+Sub Main
+
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+Dim filerow$, counter%, user_initials$
+  
+Open user_filepath & "settings.txt" for INPUT as #1
+   
+   Do While Eof(1) = 0
+      counter = counter + 1
+      Input #1, filerow      
+         If counter = 1 Then
+            user_initials = filerow
+         Exit Do
+      End If
+      
+   Loop                   
+   
+Close #1
+
+'Date & time
+Dim current_date$
+   
+current_date=Right(Year(Now),2)
+If Len(Month(Now))<2 Then
+   Let current_date = current_date & "0" & Month(Now)
+Else
+   Let current_date = current_date & Month(Now)
+End If
+   
+If Len(Day(Now))<2 Then
+   Let current_date = current_date & "0" & Day(Now)
+Else
+   Let current_date = current_date & Day(Now)
+End If
+   
+field_to_add = "910  " & user_initials & current_date
+
+If CS.AddField(99, field_to_add) = True Then 
+   CS.Reformat
+End If
+   
+End Sub

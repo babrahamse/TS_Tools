@@ -16,17 +16,29 @@ Dim filerow$, counter%, user_initials$
   
 Open user_filepath & "settings.txt" for INPUT as #1
    
-   Do While Eof(1) = 0
-      counter = counter + 1
-      Input #1, filerow      
-         If counter = 1 Then
-            user_initials = filerow
-         Exit Do
+Do While Eof(1) = 0
+   counter = counter + 1
+   Input #1, filerow      
+
+   If counter = 1 Then
+      If filerow = "" Then
+         new_user_initials = InputBox("Enter your initials here:")
+         user_initials = new_user_initials
+      Else
+         user_initials = filerow
       End If
-      
-   Loop                   
+         Exit Do
+   End If
+Loop                   
    
 Close #1
+
+If new_user_initials <> "" Then
+   Open user_filepath & "settings.txt" for OUTPUT as #1
+   Write #1, new_user_initials
+   Close #1
+End If
+
 
 'Date & time
 Dim current_date$

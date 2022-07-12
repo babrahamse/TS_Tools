@@ -1,0 +1,27 @@
+'MacroName:set_cat_settings
+'MacroDescription:set cataloger settings
+'$Include "TS_tools!utilities"
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+new_user_initials = InputBox("Enter your initials here [leave blank to cancel operation]:")
+
+If new_user_initials <> "" Then
+   Open user_filepath & "settings.txt" for OUTPUT as #1
+   Write #1, new_user_initials
+   Close #1
+   MsgBox("Cataloger inititals updated to: " & new_user_initials)
+Else
+   MsgBox("No user initials entered; settings not updated.")
+End If
+
+
+End Sub

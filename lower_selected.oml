@@ -1,0 +1,24 @@
+'MacroName:lower_selected
+'MacroDescription:shift selected to lowercase
+
+Sub Main
+   
+   Dim CS As Object
+On Error Resume Next
+   Set CS = GetObject(,"Connex.Client")
+On Error GoTo 0
+   If CS Is Nothing Then
+      Set CS = CreateObject("Connex.Client")
+   End If
+
+Dim BOOL%
+Dim selected_text$, converted_text$
+
+BOOL = CS.GetSelectedText (selected_text)
+converted_text = Lcase(selected_text)
+
+BOOL = CS.InsertText(converted_text)
+   
+   
+  
+End Sub
